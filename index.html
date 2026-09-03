@@ -330,9 +330,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.82Z"></path><circle cx="7.5" cy="7.5" r="1.2"></circle></svg>
         <span>Labels</span>
       </button>
-      <button class="action-btn" id="snapshotBtn" title="Save current view as an image">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-        <span>Save view</span>
+      <button class="action-btn active" id="orbitsBtn" title="Toggle orbit paths">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"></circle><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"></circle></svg>
+        <span>Orbits</span>
       </button>
       <button class="action-btn" id="galaxyBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3.2"></circle><path d="M12 3a9 9 0 0 1 9 9"></path></svg>
@@ -817,6 +817,7 @@ sunGroup.add(makeGlowSprite(0xffdca0, 9, 0.55));
    ============================================================ */
 var registry = {}; // key -> { pivot, mesh, data, ring }
 registry['sun'] = { mesh: sunMesh, data: SUN_DATA };
+var orbitLines = [];
 
 PLANETS.forEach(function(data){
   var pivot = new THREE.Object3D();
@@ -833,7 +834,9 @@ PLANETS.forEach(function(data){
   }
   var orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPts);
   var orbitMat = new THREE.LineBasicMaterial({ color: data.dwarf ? 0x6d7396 : 0x8892b0, transparent:true, opacity: data.dwarf ? 0.12 : 0.18 });
-  scene.add(new THREE.LineLoop(orbitGeo, orbitMat));
+  var orbitLine = new THREE.LineLoop(orbitGeo, orbitMat);
+  scene.add(orbitLine);
+  orbitLines.push(orbitLine);
 
   // tilt group (handles axial tilt + carries planet & ring together)
   var tiltGroup = new THREE.Object3D();
@@ -1377,17 +1380,24 @@ if(labelsBtn){
   });
 }
 
-/* ---------- Save current view as an image ---------- */
-var snapshotBtn = document.getElementById('snapshotBtn');
-if(snapshotBtn){
-  snapshotBtn.addEventListener('click', function(){
-    renderer.render(scene, camera);
-    var link = document.createElement('a');
-    link.download = 'solaris-view.png';
-    link.href = renderer.domElement.toDataURL('image/png');
-    link.click();
+/* ---------- Toggle orbit paths ---------- */
+var orbitsVisible = true;
+var orbitsBtn = document.getElementById('orbitsBtn');
+if(orbitsBtn){
+  orbitsBtn.addEventListener('click', function(){
+    orbitsVisible = !orbitsVisible;
+    orbitLines.forEach(function(line){ line.visible = orbitsVisible; });
+    orbitsBtn.classList.toggle('active', orbitsVisible);
   });
 }
+
+/* ---------- Extra keyboard shortcuts: space = pause/play, L = labels, O = orbits ---------- */
+document.addEventListener('keydown', function(e){
+  if(e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  if(e.code === 'Space'){ e.preventDefault(); timeToggle.click(); return; }
+  if(e.key === 'l' || e.key === 'L'){ if(labelsBtn) labelsBtn.click(); return; }
+  if(e.key === 'o' || e.key === 'O'){ if(orbitsBtn) orbitsBtn.click(); return; }
+});
 
 /* ============================================================
    ANIMATION LOOP
