@@ -964,9 +964,16 @@ scene.add(galaxyGroup);
   var mat = new THREE.PointsMaterial({ size:2.6, vertexColors:true, transparent:true, opacity:0.92, sizeAttenuation:true, blending:THREE.AdditiveBlending, depthWrite:false });
   galaxyGroup.add(new THREE.Points(geo, mat));
 
-  // soft glowing core
-  galaxyGroup.add(makeGlowSprite(0xfff2d0, 620, 0.85));
-  galaxyGroup.add(makeGlowSprite(0xffe9b8, 260, 1));
+  // soft glowing core, visible from a distance — fades out entirely as the
+  // camera approaches the black hole, so it doesn't wash out the close-up view
+  var coreGlowA = makeGlowSprite(0xfff2d0, 620, 0.6);
+  var coreGlowB = makeGlowSprite(0xffe9b8, 260, 0.7);
+  galaxyGroup.add(coreGlowA);
+  galaxyGroup.add(coreGlowB);
+  window.__bhFarGlow = [
+    { sprite: coreGlowA, baseOpacity: 0.6 },
+    { sprite: coreGlowB, baseOpacity: 0.7 }
+  ];
 
   // faint outer halo of stray stars
   var haloCount = 2500;
@@ -983,6 +990,311 @@ scene.add(galaxyGroup);
   haloGeo.setAttribute('position', new THREE.BufferAttribute(haloPos,3));
   var haloMat = new THREE.PointsMaterial({ color:0xaeb8e6, size:1.1, transparent:true, opacity:0.35, sizeAttenuation:true });
   galaxyGroup.add(new THREE.Points(haloGeo, haloMat));
+})();
+
+/* ============================================================
+   GALAXY DEEP-SKY OBJECTS
+   Nebulas + the supermassive black hole at the core, scattered
+   through the same spiral-arm structure as the star field above.
+   Each one is clickable and zoomable, just like a planet.
+   ============================================================ */
+function galaxySpiralPoint(rNorm, armIndex, angleOffset){
+  var galaxyRadius = 1550, numArms = 4, armTightness = 3.2;
+  var armAngle = armIndex * (Math.PI*2/numArms);
+  var r = rNorm * galaxyRadius;
+  var angle = armAngle + r * (armTightness/galaxyRadius) * Math.PI + (angleOffset||0);
+  return { x: Math.cos(angle)*r, z: Math.sin(angle)*r };
+}
+
+// Invisible sphere used purely as a click/raycast target — real geometry stays
+// too small or too irregular (points/sprites) to click reliably on its own.
+function makeHitTarget(radius){
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 12, 12),
+    new THREE.MeshBasicMaterial({ transparent:true, opacity:0, depthWrite:false })
+  );
+}
+
+function buildNebula(pos, color1, color2, size){
+  var group = new THREE.Group();
+  group.position.set(pos.x, pos.y, pos.z);
+
+  var s1 = makeGlowSprite(color1, size*1.3, 0.30);
+  s1.scale.set(size*1.35, size*0.78, 1);
+  s1.material.rotation = Math.random()*Math.PI;
+  group.add(s1);
+
+  var s2 = makeGlowSprite(color2, size, 0.26);
+  s2.position.set(size*0.16, size*0.05, size*0.1);
+  s2.scale.set(size*0.95, size*0.58, 1);
+  s2.material.rotation = Math.random()*Math.PI;
+  group.add(s2);
+
+  var s3 = makeGlowSprite(color1, size*0.55, 0.34);
+  s3.position.set(-size*0.12, -size*0.04, -size*0.05);
+  group.add(s3);
+
+  // bright star-forming knots scattered through the cloud
+  var knotCount = 34;
+  var kpos = new Float32Array(knotCount*3);
+  for(var i=0;i<knotCount;i++){
+    kpos[i*3]   = (Math.random()-0.5)*size*1.15;
+    kpos[i*3+1] = (Math.random()-0.5)*size*0.45;
+    kpos[i*3+2] = (Math.random()-0.5)*size*1.15;
+  }
+  var kgeo = new THREE.BufferGeometry();
+  kgeo.setAttribute('position', new THREE.BufferAttribute(kpos,3));
+  var kmat = new THREE.PointsMaterial({ color:color2, size:1.8, transparent:true, opacity:0.55, blending:THREE.AdditiveBlending, sizeAttenuation:true });
+  group.add(new THREE.Points(kgeo, kmat));
+
+  // invisible click target sized to the visible cloud
+  var hit = makeHitTarget(size*0.68);
+  group.add(hit);
+
+  galaxyGroup.add(group);
+  return { group: group, hit: hit };
+}
+
+(function buildNebulae(){
+  var NEBULAE = [
+    { rNorm:0.26, arm:0, off: 0.35, color1:0xff6fa8, color2:0xffc98a, size:150, y:14,
+      key:'nebula_orion', name:'Orion Nebula', constellation:'Orion', distance:'≈1,340 light-years', diameter:'≈24 light-years', type:'Emission nebula (stellar nursery)',
+      tagline:'A glowing stellar nursery, bright enough to see with the naked eye.',
+      description:'The Orion Nebula is one of the closest and brightest star-forming regions to Earth. Inside its glowing clouds of hydrogen gas, radiation from young, hot stars lights up the surrounding dust, and hundreds of new stars are being born right now.',
+      facts:['Visible to the naked eye as a fuzzy patch below Orion\'s Belt.','Contains the Trapezium Cluster, four massive young stars that light up the whole nebula.'] },
+    { rNorm:0.40, arm:1, off:-0.30, color1:0x6fd8ff, color2:0xb38cff, size:170, y:-18,
+      key:'nebula_trifid', name:'Trifid Nebula', constellation:'Sagittarius', distance:'≈5,200 light-years', diameter:'≈35 light-years', type:'Emission + reflection + dark nebula',
+      tagline:'A three-in-one nebula, split by dark dust lanes into glowing lobes.',
+      description:'The Trifid Nebula combines three nebula types in one object: a pink emission region lit by a young star cluster, a blue reflection cloud scattering starlight, and dark dust lanes that carve the whole thing into sections — which is how it got its name.',
+      facts:['"Trifid" means divided into three parts, referring to the dark dust lanes splitting the glowing region.','It is actively forming new stars, much like the Orion Nebula.'] },
+    { rNorm:0.55, arm:2, off: 0.42, color1:0x7affc4, color2:0x6fd8ff, size:130, y:20,
+      key:'nebula_ring', name:'Ring Nebula', constellation:'Lyra', distance:'≈2,570 light-years', diameter:'≈1 light-year', type:'Planetary nebula',
+      tagline:'The glowing shell a Sun-like star leaves behind when it dies.',
+      description:'The Ring Nebula formed when an aging, sun-like star puffed off its outer layers near the end of its life, leaving behind an expanding shell of glowing gas around a small, hot white dwarf. Despite the name, planetary nebulae have nothing to do with planets — early astronomers just thought they looked like distant planets through small telescopes.',
+      facts:['One of the most famous and most photographed planetary nebulae in the sky.','It will fade away entirely over the next few thousand years.'] },
+    { rNorm:0.33, arm:3, off:-0.25, color1:0xffa36f, color2:0xff6f8a, size:150, y:-10,
+      key:'nebula_carina', name:'Carina Nebula', constellation:'Carina', distance:'≈7,500 light-years', diameter:'≈300 light-years', type:'Emission nebula',
+      tagline:'One of the largest and brightest nebulae in the entire night sky.',
+      description:'The Carina Nebula is a vast cloud of glowing gas and dust, several times larger than the Orion Nebula, and home to some of the most massive and luminous stars known — including the unstable giant Eta Carinae, which could explode as a supernova at any time on astronomical timescales.',
+      facts:['Home to Eta Carinae, one of the most massive and luminous stars known in the galaxy.','Easily visible to the naked eye from the Southern Hemisphere.'] },
+    { rNorm:0.66, arm:0, off:-0.40, color1:0xb38cff, color2:0x6f8dff, size:180, y:16,
+      key:'nebula_eagle', name:'Eagle Nebula', constellation:'Serpens', distance:'≈7,000 light-years', diameter:'≈70 × 55 light-years', type:'Emission nebula (stellar nursery)',
+      tagline:'Home to the towering "Pillars of Creation."',
+      description:'The Eagle Nebula is best known for the Pillars of Creation — huge columns of cold gas and dust where new stars are actively forming, made famous by iconic Hubble Space Telescope images. Radiation from nearby young stars is slowly eroding the pillars away.',
+      facts:['The Pillars of Creation image, taken in 1995, became one of the most iconic astronomical photos ever released.','The pillars themselves may already have been partly destroyed by a nearby supernova — but the light showing that hasn\'t reached us yet.'] },
+    { rNorm:0.47, arm:2, off: 0.20, color1:0xff8fd0, color2:0xffe08a, size:135, y:-22,
+      key:'nebula_lagoon', name:'Lagoon Nebula', constellation:'Sagittarius', distance:'≈4,100 light-years', diameter:'≈110 light-years', type:'Emission nebula (stellar nursery)',
+      tagline:'A giant, naked-eye-visible cloud of star birth toward the galactic core.',
+      description:'The Lagoon Nebula is a huge, glowing cloud of hydrogen gas where thousands of new stars are forming. It sits in the direction of the galactic center and, under a dark sky, is bright enough to spot without a telescope.',
+      facts:['One of only a few nebulae bright enough to see with the naked eye from Earth.','Contains a compact cluster of hot young stars carving cavities into the surrounding gas.'] },
+    { rNorm:0.72, arm:1, off: 0.30, color1:0x6fffd8, color2:0x6fd8ff, size:150, y:8,
+      key:'nebula_helix', name:'Helix Nebula', constellation:'Aquarius', distance:'≈650 light-years', diameter:'≈2.5 light-years', type:'Planetary nebula',
+      tagline:'Nicknamed the "Eye of God" — the closest planetary nebula to Earth.',
+      description:'The Helix Nebula is the glowing remains of a dying Sun-like star, and at roughly 650 light-years away, it\'s the closest planetary nebula to Earth. Its layered, eye-like structure gave it the popular nickname "Eye of God."',
+      facts:['Its relative closeness makes it one of the most detailed planetary nebulae ever imaged.','The white dwarf at its center is the exposed core of the star that once shone here.'] },
+    { rNorm:0.20, arm:3, off: 0.15, color1:0xffb37a, color2:0xff6f9f, size:110, y:-6,
+      key:'nebula_rosette', name:'Rosette Nebula', constellation:'Monoceros', distance:'≈5,200 light-years', diameter:'≈130 light-years', type:'Emission nebula (stellar nursery)',
+      tagline:'A flower-shaped ring of glowing gas wrapped around a young star cluster.',
+      description:'The Rosette Nebula forms a huge, rose-shaped ring of glowing gas surrounding the young open star cluster NGC 2244. Radiation and stellar winds from the cluster\'s hot young stars have hollowed out the nebula\'s center, giving it its distinctive floral shape.',
+      facts:['Its central cluster, NGC 2244, contains stars only a few million years old — infants by stellar standards.','The hollowed-out center is a direct result of pressure from the young stars\' radiation and winds.'] }
+  ];
+  NEBULAE.forEach(function(n){
+    var p = galaxySpiralPoint(n.rNorm, n.arm, n.off);
+    var built = buildNebula({ x:p.x, y:n.y, z:p.z }, n.color1, n.color2, n.size);
+    var data = {
+      key: n.key, name: n.name, eyebrow: 'Nebula',
+      colorHex: '#' + n.color1.toString(16).padStart(6,'0'),
+      size: Math.max(30, n.size*0.7),
+      tagline: n.tagline,
+      stats: [
+        { label:'Type', value:n.type },
+        { label:'Constellation', value:n.constellation },
+        { label:'Distance from Earth', value:n.distance },
+        { label:'Diameter', value:n.diameter }
+      ],
+      description: n.description,
+      facts: n.facts
+    };
+    registry[n.key] = { mesh: built.hit, data: data };
+  });
+})();
+
+/* ---------- Sagittarius A* — supermassive black hole at the galactic core ---------- */
+(function buildGalacticBlackHole(){
+  var bh = new THREE.Group();
+  bh.position.set(0, 0, 0); // galaxyGroup's local origin = galactic center
+  galaxyGroup.add(bh);
+
+  // event horizon — solid, occludes everything behind it
+  var horizon = new THREE.Mesh(
+    new THREE.SphereGeometry(9, 40, 40),
+    new THREE.MeshBasicMaterial({ color:0x000000 })
+  );
+  bh.add(horizon);
+
+  // accretion disk texture: white-hot near the hole, cooling to violet at the rim
+  var diskC = document.createElement('canvas'); diskC.width = 512; diskC.height = 64;
+  var dctx = diskC.getContext('2d');
+  var dgrad = dctx.createLinearGradient(0,0,512,0);
+  dgrad.addColorStop(0.00, 'rgba(255,255,255,0)');
+  dgrad.addColorStop(0.08, 'rgba(255,245,225,0.72)');
+  dgrad.addColorStop(0.25, 'rgba(255,190,110,0.55)');
+  dgrad.addColorStop(0.55, 'rgba(255,130,70,0.30)');
+  dgrad.addColorStop(0.85, 'rgba(185,110,255,0.10)');
+  dgrad.addColorStop(1.00, 'rgba(185,110,255,0)');
+  dctx.fillStyle = dgrad; dctx.fillRect(0,0,512,64);
+  var diskTex = new THREE.CanvasTexture(diskC);
+
+  var diskGeo = new THREE.RingGeometry(10, 48, 128, 1);
+  remapRingUVs(diskGeo);
+  var diskMat = new THREE.MeshBasicMaterial({ map:diskTex, side:THREE.DoubleSide, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false });
+  var disk = new THREE.Mesh(diskGeo, diskMat);
+  disk.rotation.x = Math.PI/2 + 0.18; // slight tilt so it reads as a disk, not a flat ring
+  bh.add(disk);
+
+  var diskGeo2 = new THREE.RingGeometry(9.4, 20, 128, 1);
+  remapRingUVs(diskGeo2);
+  var disk2 = new THREE.Mesh(diskGeo2, diskMat.clone());
+  disk2.rotation.x = Math.PI/2 + 0.18;
+  bh.add(disk2);
+
+  // ambient core glow (kept subtle so the disk detail still reads clearly;
+  // fades further when the camera zooms in very close, per-frame in animate())
+  var glowInner = makeGlowSprite(0xffdca0, 70, 0.26);
+  var glowOuter = makeGlowSprite(0xb37aff, 125, 0.12);
+  bh.add(glowInner);
+  bh.add(glowOuter);
+  window.__bhGlowSprites = [
+    { sprite: glowInner, baseOpacity: 0.26 },
+    { sprite: glowOuter, baseOpacity: 0.12 }
+  ];
+
+  // label, styled like the "You are here" marker
+  var c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  var ctx = c.getContext('2d');
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(256,58); ctx.lineTo(256,10); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath(); ctx.arc(256,58,4,0,Math.PI*2); ctx.fill();
+  ctx.font = '600 28px Inter, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#f5f0ff';
+  ctx.fillText('Sagittarius A*', 256, 96);
+  ctx.font = '400 18px Inter, sans-serif';
+  ctx.fillStyle = 'rgba(230,225,255,0.75)';
+  ctx.fillText('Supermassive black hole', 256, 118);
+  var tex = new THREE.CanvasTexture(c);
+  var mat = new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false });
+  var sprite = new THREE.Sprite(mat);
+  sprite.scale.set(190, 47.5, 1);
+  sprite.position.set(0, 72, 0);
+  bh.add(sprite);
+
+  var hit = makeHitTarget(46);
+  bh.add(hit);
+
+  registry['blackhole'] = {
+    mesh: hit,
+    data: {
+      key:'blackhole', name:'Sagittarius A*', eyebrow:'Black Hole', colorHex:'#ffb46a', size:26,
+      skipFloatingLabel: true,
+      tagline:'The supermassive black hole anchoring the center of the Milky Way.',
+      stats: [
+        { label:'Type', value:'Supermassive black hole' },
+        { label:'Mass', value:'≈4.3 million ☉ (Suns)' },
+        { label:'Distance from Earth', value:'≈26,000 light-years' },
+        { label:'Location', value:'Constellation Sagittarius' },
+        { label:'First imaged', value:'2022, Event Horizon Telescope' }
+      ],
+      description:'Sagittarius A* sits at the very heart of our galaxy, with a mass equivalent to millions of Suns packed into a region smaller than our solar system. Its immense gravity pulls in gas and dust, which heats up and glows brightly just before crossing the event horizon — the point of no return.',
+      facts: [
+        'Astronomers captured the first-ever image of its silhouette in 2022 using the Event Horizon Telescope.',
+        'Stars near it orbit in just a few decades, fast enough to help confirm Einstein\'s general relativity.',
+        'Nothing that crosses the event horizon — not even light — can ever escape.'
+      ]
+    }
+  };
+})();
+
+/* ---------- "White hole" — a theoretical counterpart, placed for visual balance ----------
+   Note: white holes are a mathematical solution to general relativity, not an
+   object anyone has ever observed. It's included here purely as a stylised,
+   labelled sci-fi feature, not a real structure of the Milky Way. */
+(function buildWhiteHole(){
+  var p = galaxySpiralPoint(0.80, 2, 0.55);
+  var wh = new THREE.Group();
+  wh.position.set(p.x, 46, p.z);
+  galaxyGroup.add(wh);
+
+  var core = new THREE.Mesh(
+    new THREE.SphereGeometry(6, 32, 32),
+    new THREE.MeshBasicMaterial({ color:0xffffff })
+  );
+  wh.add(core);
+  wh.add(makeGlowSprite(0xffffff, 50, 0.5));
+  wh.add(makeGlowSprite(0xbfe8ff, 100, 0.20));
+
+  // outward-radiating jets of matter, the visual opposite of the black hole above
+  for(var j=0; j<6; j++){
+    var dir = new THREE.Vector3(Math.random()-0.5, (Math.random()-0.5)*0.6, Math.random()-0.5).normalize();
+    var jetLen = 30 + Math.random()*40;
+    var pts = 20;
+    var positions = new Float32Array(pts*3);
+    for(var p2=0; p2<pts; p2++){
+      var t = p2/pts;
+      var jitter = (Math.random()-0.5)*3;
+      positions[p2*3]   = dir.x*jetLen*t + jitter;
+      positions[p2*3+1] = dir.y*jetLen*t + jitter*0.3;
+      positions[p2*3+2] = dir.z*jetLen*t + jitter;
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+    var mat = new THREE.PointsMaterial({ color:0xdfefff, size:1.3, transparent:true, opacity:0.45, blending:THREE.AdditiveBlending, sizeAttenuation:true });
+    wh.add(new THREE.Points(geo, mat));
+  }
+
+  var c = document.createElement('canvas'); c.width = 620; c.height = 128;
+  var ctx = c.getContext('2d');
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(310,58); ctx.lineTo(310,10); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath(); ctx.arc(310,58,4,0,Math.PI*2); ctx.fill();
+  ctx.font = '600 26px Inter, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#f5f0ff';
+  ctx.fillText('"White hole" (theoretical)', 310, 94);
+  ctx.font = '400 15px Inter, sans-serif';
+  ctx.fillStyle = 'rgba(230,225,255,0.7)';
+  ctx.fillText('Never observed — a sci-fi extra, not a real feature', 310, 114);
+  var tex = new THREE.CanvasTexture(c);
+  var mat2 = new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false });
+  var sprite = new THREE.Sprite(mat2);
+  sprite.scale.set(278, 57.5, 1);
+  sprite.position.set(0, 48, 0);
+  wh.add(sprite);
+
+  var hit = makeHitTarget(30);
+  wh.add(hit);
+
+  registry['whitehole'] = {
+    mesh: hit,
+    data: {
+      key:'whitehole', name:'Theoretical White Hole', eyebrow:'White Hole', colorHex:'#bfe8ff', size:20,
+      skipFloatingLabel: true,
+      tagline:'A sci-fi extra added for fun — physics allows the idea, but nobody has ever seen one.',
+      stats: [
+        { label:'Type', value:'Hypothetical object' },
+        { label:'Status', value:'Never observed' },
+        { label:'Predicted by', value:'General relativity' },
+        { label:'Behavior', value:'Only expels matter, nothing falls in' },
+        { label:'Relation', value:'Mathematical mirror of a black hole' }
+      ],
+      description:'A white hole is what you get if you reverse the equations that describe a black hole: matter would only ever flow out, and could never fall back in. The math works, but no real white hole has ever been detected anywhere in the universe — this one is included purely as a stylised, labeled addition to the scene, not a real feature of the Milky Way.',
+      facts: [
+        'Some theories link white holes to the "other side" of a black hole, though this stays speculative.',
+        'Unlike black holes, they would be inherently unstable and aren\'t expected to form naturally.',
+        'They remain a valid solution to Einstein\'s equations — but valid math doesn\'t guarantee something exists in nature.'
+      ]
+    }
+  };
 })();
 
 /* "You are here" marker, at the solar system's true position in the scene */
@@ -1095,7 +1407,8 @@ var hintHidden = false;
 
 function showInfo(d){
   var isGalaxy = (d.key === 'galaxy');
-  document.getElementById('infoEyebrow').textContent = isGalaxy ? 'Galaxy' : (d.key === 'sun') ? 'Star' : 'Planet';
+  var eyebrow = d.eyebrow || (isGalaxy ? 'Galaxy' : (d.key === 'sun') ? 'Star' : 'Planet');
+  document.getElementById('infoEyebrow').textContent = eyebrow;
   document.getElementById('infoName').textContent = d.name;
   document.getElementById('infoTagline').textContent = d.tagline;
 
@@ -1350,11 +1663,13 @@ function makeLabelSprite(text){
 (function buildLabels(){
   Object.keys(registry).forEach(function(k){
     var entry = registry[k];
+    if(entry.data.skipFloatingLabel) return; // e.g. black hole / white hole already carry their own label sprite
     var label = makeLabelSprite(entry.data.name);
     var parent, localPos;
     if(k === 'sun'){ parent = sunGroup; localPos = new THREE.Vector3(0, entry.data.size + 2.6, 0); }
     else if(k === 'moon'){ parent = entry.pivot; localPos = new THREE.Vector3(2.7, entry.data.size + 0.7, 0); }
-    else { parent = entry.tiltGroup; localPos = new THREE.Vector3(0, entry.data.size + 1.0, 0); }
+    else if(entry.tiltGroup){ parent = entry.tiltGroup; localPos = new THREE.Vector3(0, entry.data.size + 1.0, 0); }
+    else { parent = entry.mesh; localPos = new THREE.Vector3(0, entry.data.size*0.5 + 5, 0); } // nebulas etc: fall back to their hit-target mesh
     label.position.copy(localPos);
     label.visible = labelsVisible;
     parent.add(label);
@@ -1446,6 +1761,32 @@ function animate(){
   updateMeteors(delta);
   updateComet(d2);
   updateLabels();
+
+  // Sagittarius A*'s glow reacts to camera distance: the big ambient core
+  // glow fades OUT as the camera nears the hole (it's meant for the wide,
+  // far-away view), while the small close-range glow stays subtle throughout.
+  if(window.__bhFarGlow || window.__bhGlowSprites){
+    var bhEntry = registry['blackhole'];
+    if(bhEntry){
+      var bhPos = new THREE.Vector3();
+      bhEntry.mesh.getWorldPosition(bhPos);
+      var camDist = camera.position.distanceTo(bhPos);
+
+      if(window.__bhFarGlow){
+        var farFade = THREE.MathUtils.clamp((camDist - 250) / 750, 0, 1);
+        window.__bhFarGlow.forEach(function(g){
+          g.sprite.material.opacity = g.baseOpacity * farFade;
+        });
+      }
+      if(window.__bhGlowSprites){
+        var nearFade = THREE.MathUtils.clamp((camDist - 20) / 140, 0.15, 1);
+        window.__bhGlowSprites.forEach(function(g){
+          g.sprite.material.opacity = g.baseOpacity * nearFade;
+        });
+      }
+    }
+  }
+
   renderer.render(scene, camera);
 }
 
