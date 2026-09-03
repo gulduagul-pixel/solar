@@ -73,6 +73,19 @@
   }
   #timeToggle svg{ width:14px; height:14px; }
 
+  .hud-actions{ display:flex; align-items:center; gap:10px; }
+  #fullscreenBtn{
+    width:38px; height:38px; border-radius:50%;
+    background: var(--panel); border:1px solid var(--panel-border);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    color: var(--text-dim); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: color .2s ease, border-color .2s ease;
+    flex-shrink:0;
+  }
+  #fullscreenBtn:hover{ color:var(--text); border-color: rgba(255,255,255,0.22); }
+  #fullscreenBtn svg{ width:15px; height:15px; }
+
   /* ---------- Hint (first load) ---------- */
   #hint{
     position:absolute; top:84px; left:50%; transform:translateX(-50%);
@@ -160,6 +173,7 @@
   .action-btn:active{ transform: scale(0.96); }
   .action-btn svg{ width:15px; height:15px; }
   .action-btn.primary{ color: var(--accent); }
+  .action-btn.active{ color: var(--accent); border-color: rgba(255,180,84,0.35); }
 
   /* ---------- Info panel ---------- */
   #infoPanel{
@@ -272,15 +286,20 @@
         <p>An interactive tour of our solar system</p>
       </div>
     </div>
-    <div id="timeToggle" title="Pause or resume planetary motion">
-      <span id="timeLabel">Pause motion</span>
-      <div class="dot">
-        <svg id="timeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+    <div class="hud-actions">
+      <div id="timeToggle" title="Cycle simulation speed">
+        <span id="timeLabel">1× speed</span>
+        <div class="dot">
+          <svg id="timeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+        </div>
       </div>
+      <button id="fullscreenBtn" title="Toggle fullscreen">
+        <svg id="fsIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+      </button>
     </div>
   </header>
 
-  <div id="hint">Drag to look around · scroll to zoom · pick a planet below</div>
+  <div id="hint">Drag to look around · scroll to zoom · click a planet or pick one below</div>
 
   <div id="infoPanel">
     <div class="info-hero">
@@ -293,12 +312,7 @@
       <p id="infoTagline">—</p>
     </div>
     <div class="info-body">
-      <div class="stat-grid">
-        <div class="stat"><p class="label" id="labelTemp">Avg. temperature</p><p class="value" id="statTemp">—</p></div>
-        <div class="stat"><p class="label" id="labelDistance">Distance from Earth</p><p class="value" id="statDistance">—</p></div>
-        <div class="stat"><p class="label" id="labelDiameter">Diameter</p><p class="value" id="statDiameter">—</p></div>
-        <div class="stat"><p class="label" id="labelDay">Day length</p><p class="value" id="statDay">—</p></div>
-      </div>
+      <div class="stat-grid" id="statGrid"></div>
       <div class="info-section">
         <h3>Overview</h3>
         <p id="infoDescription">—</p>
@@ -312,6 +326,14 @@
 
   <div id="controls">
     <div id="actionRow">
+      <button class="action-btn active" id="labelsBtn" title="Toggle planet name labels">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.82Z"></path><circle cx="7.5" cy="7.5" r="1.2"></circle></svg>
+        <span>Labels</span>
+      </button>
+      <button class="action-btn" id="snapshotBtn" title="Save current view as an image">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+        <span>Save view</span>
+      </button>
       <button class="action-btn" id="galaxyBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3.2"></circle><path d="M12 3a9 9 0 0 1 9 9"></path></svg>
         <span>Zoom out · Galaxy</span>
@@ -324,6 +346,8 @@
     <div id="planetRow"></div>
   </div>
 </div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
@@ -342,7 +366,14 @@ var PLANETS = [
     key:'mercury', name:'Mercury', color:0x9a8f86, colorHex:'#b9ada2',
     size:0.62, orbitRadius:13, orbitSpeed:0.90, rotSpeed:0.6, tilt:0.03,
     style:'rocky',
-    temperature:'167°C', distance:'≈ 77 million km', diameter:'4,879 km', day:'59 Earth days',
+    stats:[
+      {label:'Avg. temperature', value:'167°C'},
+      {label:'Distance from Earth', value:'≈ 77 million km'},
+      {label:'Diameter', value:'4,879 km'},
+      {label:'Day length', value:'59 Earth days'},
+      {label:'Orbital period', value:'88 Earth days'},
+      {label:'Moons', value:'0'}
+    ],
     tagline:'The smallest planet and the closest to the Sun.',
     description:'Mercury is a small, heavily cratered world with almost no atmosphere to trap heat. Its surface temperature swings from scorching by day to freezing by night, one of the most extreme ranges of any planet.',
     facts:[
@@ -355,7 +386,14 @@ var PLANETS = [
     key:'venus', name:'Venus', color:0xd9a95f, colorHex:'#e7c087',
     size:1.0, orbitRadius:18, orbitSpeed:0.68, rotSpeed:-0.25, tilt:177.4,
     style:'venus',
-    temperature:'464°C', distance:'≈ 41 million km', diameter:'12,104 km', day:'243 Earth days',
+    stats:[
+      {label:'Avg. temperature', value:'464°C'},
+      {label:'Distance from Earth', value:'≈ 41 million km'},
+      {label:'Diameter', value:'12,104 km'},
+      {label:'Day length', value:'243 Earth days'},
+      {label:'Orbital period', value:'225 Earth days'},
+      {label:'Moons', value:'0'}
+    ],
     tagline:'Earth’s twin in size, but a runaway greenhouse world.',
     description:'Venus is wrapped in a thick, toxic atmosphere of carbon dioxide with clouds of sulfuric acid, trapping heat so effectively it is the hottest planet in the solar system, even hotter than Mercury.',
     facts:[
@@ -368,7 +406,14 @@ var PLANETS = [
     key:'earth', name:'Earth', color:0x3d7bd9, colorHex:'#5b93e6',
     size:1.05, orbitRadius:23, orbitSpeed:0.55, rotSpeed:2.2, tilt:23.4,
     style:'earth',
-    temperature:'15°C', distance:'Home planet', diameter:'12,742 km', day:'24 hours',
+    stats:[
+      {label:'Avg. temperature', value:'15°C'},
+      {label:'Distance from Earth', value:'Home planet'},
+      {label:'Diameter', value:'12,742 km'},
+      {label:'Day length', value:'24 hours'},
+      {label:'Orbital period', value:'365.25 days'},
+      {label:'Moons', value:'1 — the Moon'}
+    ],
     tagline:'Our home — the only known planet with life.',
     description:'Earth sits in the Sun’s habitable zone, with liquid water covering most of its surface, a protective atmosphere, and a magnetic field that shields life from harmful radiation.',
     facts:[
@@ -381,7 +426,14 @@ var PLANETS = [
     key:'mars', name:'Mars', color:0xb5502f, colorHex:'#d4643c',
     size:0.75, orbitRadius:28, orbitSpeed:0.44, rotSpeed:2.1, tilt:25.2,
     style:'rocky',
-    temperature:'-65°C', distance:'≈ 78 million km', diameter:'6,779 km', day:'24.6 hours',
+    stats:[
+      {label:'Avg. temperature', value:'-65°C'},
+      {label:'Distance from Earth', value:'≈ 78 million km'},
+      {label:'Diameter', value:'6,779 km'},
+      {label:'Day length', value:'24.6 hours'},
+      {label:'Orbital period', value:'687 Earth days'},
+      {label:'Moons', value:'2 — Phobos, Deimos'}
+    ],
     tagline:'The Red Planet, prime target for human exploration.',
     description:'Mars is a cold desert world with a thin atmosphere, polar ice caps, and the largest volcano and canyon system in the solar system. Iron oxide dust gives it a distinctive rust-red color.',
     facts:[
@@ -394,7 +446,14 @@ var PLANETS = [
     key:'jupiter', name:'Jupiter', color:0xd8b48a, colorHex:'#e6c79c',
     size:2.9, orbitRadius:38, orbitSpeed:0.24, rotSpeed:5.0, tilt:3.1,
     style:'gas',
-    temperature:'-110°C', distance:'≈ 628 million km', diameter:'139,820 km', day:'9.9 hours',
+    stats:[
+      {label:'Avg. temperature', value:'-110°C'},
+      {label:'Distance from Earth', value:'≈ 628 million km'},
+      {label:'Diameter', value:'139,820 km'},
+      {label:'Day length', value:'9.9 hours'},
+      {label:'Orbital period', value:'≈12 Earth years'},
+      {label:'Moons', value:'95 confirmed'}
+    ],
     tagline:'The largest planet, a giant world of swirling gas.',
     description:'Jupiter is a colossal gas giant with bands of storms, the most famous being the Great Red Spot, a storm larger than Earth that has raged for centuries. It has a powerful magnetic field and dozens of moons.',
     facts:[
@@ -407,7 +466,14 @@ var PLANETS = [
     key:'saturn', name:'Saturn', color:0xe3cf9c, colorHex:'#f0e0ae',
     size:2.5, orbitRadius:50, orbitSpeed:0.18, rotSpeed:4.6, tilt:26.7,
     style:'gas', hasRing:true,
-    temperature:'-140°C', distance:'≈ 1.28 billion km', diameter:'116,460 km', day:'10.7 hours',
+    stats:[
+      {label:'Avg. temperature', value:'-140°C'},
+      {label:'Distance from Earth', value:'≈ 1.28 billion km'},
+      {label:'Diameter', value:'116,460 km'},
+      {label:'Day length', value:'10.7 hours'},
+      {label:'Orbital period', value:'≈29 Earth years'},
+      {label:'Moons', value:'140+ confirmed'}
+    ],
     tagline:'Famous for its dazzling, wide ring system.',
     description:'Saturn is a gas giant encircled by a spectacular system of icy rings made of countless particles ranging from dust grains to boulders. It is the least dense planet — it would float in water.',
     facts:[
@@ -420,7 +486,14 @@ var PLANETS = [
     key:'uranus', name:'Uranus', color:0x9fd7dc, colorHex:'#b7e6ea',
     size:1.7, orbitRadius:60, orbitSpeed:0.13, rotSpeed:3.4, tilt:97.8,
     style:'ice', hasRing:true,
-    temperature:'-195°C', distance:'≈ 2.72 billion km', diameter:'50,724 km', day:'17.2 hours',
+    stats:[
+      {label:'Avg. temperature', value:'-195°C'},
+      {label:'Distance from Earth', value:'≈ 2.72 billion km'},
+      {label:'Diameter', value:'50,724 km'},
+      {label:'Day length', value:'17.2 hours'},
+      {label:'Orbital period', value:'≈84 Earth years'},
+      {label:'Moons', value:'28 confirmed'}
+    ],
     tagline:'The tilted ice giant that spins on its side.',
     description:'Uranus is an ice giant with an atmosphere of hydrogen, helium and methane that gives it a pale cyan color. Uniquely, it rotates almost sideways, likely the result of an ancient collision.',
     facts:[
@@ -433,7 +506,14 @@ var PLANETS = [
     key:'neptune', name:'Neptune', color:0x4463d9, colorHex:'#5f7ff0',
     size:1.65, orbitRadius:70, orbitSpeed:0.10, rotSpeed:3.6, tilt:28.3,
     style:'ice',
-    temperature:'-200°C', distance:'≈ 4.35 billion km', diameter:'49,244 km', day:'16.1 hours',
+    stats:[
+      {label:'Avg. temperature', value:'-200°C'},
+      {label:'Distance from Earth', value:'≈ 4.35 billion km'},
+      {label:'Diameter', value:'49,244 km'},
+      {label:'Day length', value:'16.1 hours'},
+      {label:'Orbital period', value:'≈165 Earth years'},
+      {label:'Moons', value:'16 confirmed'}
+    ],
     tagline:'The windiest world, a deep blue ice giant.',
     description:'Neptune is the most distant planet from the Sun, a dark, cold ice giant with the fastest winds in the solar system, reaching over 2,000 km/h. Its vivid blue color comes from methane in its atmosphere.',
     facts:[
@@ -441,12 +521,39 @@ var PLANETS = [
       'It has the strongest sustained winds of any planet.',
       'Its largest moon, Triton, orbits backwards around it.'
     ]
+  },
+  {
+    key:'pluto', name:'Pluto', color:0xcbb69c, colorHex:'#dcc8ae',
+    size:0.34, orbitRadius:80, orbitSpeed:0.075, rotSpeed:1.2, tilt:122.5,
+    style:'rocky', inclination:14, dwarf:true,
+    stats:[
+      {label:'Avg. temperature', value:'-225°C'},
+      {label:'Distance from Earth', value:'≈ 5.9 billion km'},
+      {label:'Diameter', value:'2,377 km'},
+      {label:'Day length', value:'6.4 Earth days'},
+      {label:'Orbital period', value:'248 Earth years'},
+      {label:'Moons', value:'5 — largest is Charon'}
+    ],
+    tagline:'A small, icy dwarf planet at the edge of the solar system.',
+    description:'Pluto orbits far beyond Neptune in the Kuiper Belt, a region of icy bodies at the solar system’s outer edge. Reclassified as a dwarf planet in 2006, it has a tilted, elongated orbit and a surprisingly complex surface of nitrogen ice and mountains.',
+    facts:[
+      'Pluto was reclassified from a planet to a dwarf planet in 2006.',
+      'Its largest moon, Charon, is about half Pluto’s size.',
+      'NASA’s New Horizons spacecraft flew past it in 2015, capturing the first close-up images.'
+    ]
   }
 ];
 
 var SUN_DATA = {
   key:'sun', name:'Sun', colorHex:'#ffcf6b', size:5.4, rotSpeed:0.125,
-  temperature:'≈5,500°C surface / 15 million°C core', distance:'≈ 149.6 million km', diameter:'1,392,700 km', day:'≈27 Earth days (varies by latitude)',
+  stats:[
+    {label:'Surface / core temp.', value:'5,500°C / 15M°C'},
+    {label:'Distance from Earth', value:'≈ 149.6 million km'},
+    {label:'Diameter', value:'1,392,700 km'},
+    {label:'Rotation period', value:'≈27 Earth days'},
+    {label:'Orbit around galaxy', value:'≈230 million years'},
+    {label:'Planets orbiting it', value:'8'}
+  ],
   tagline:'The star at the center of it all — everything orbits it.',
   description:'The Sun is a massive ball of hot plasma, made almost entirely of hydrogen and helium, that generates energy through nuclear fusion at its core. Its gravity holds the entire solar system together, and its light and heat make life on Earth possible.',
   facts:[
@@ -458,13 +565,39 @@ var SUN_DATA = {
 
 var GALAXY_DATA = {
   key:'galaxy', name:'Milky Way', colorHex:'#b9a7ff',
-  temperature:'100–400 billion (est.)', distance:'Sun is ≈26,000 light-years from the core', diameter:'≈100,000 light-years across', day:'≈230 million years per orbit of the core',
+  stats:[
+    {label:'Estimated stars', value:'100–400 billion'},
+    {label:'Sun’s distance from core', value:'≈26,000 light-years'},
+    {label:'Diameter', value:'≈100,000 light-years'},
+    {label:'Galaxy type', value:'Barred spiral'},
+    {label:'Estimated age', value:'≈13.6 billion years'},
+    {label:'Orbit around core', value:'≈230 million years'}
+  ],
   tagline:'Zoomed all the way out — the galaxy that holds our entire solar system.',
   description:'The Milky Way is a barred spiral galaxy made of hundreds of billions of stars, huge clouds of gas and dust, and a supermassive black hole at its core. Our whole solar system, marked below, sits inside one of its spiral arms, orbiting the galactic center along with everything else.',
   facts:[
     'The Milky Way is on a slow collision course with the Andromeda Galaxy, expected to merge in about 4.5 billion years.',
     'Our solar system takes roughly 230 million years to complete one lap around the galactic center.',
     'From Earth, the Milky Way appears as a faint band of light stretching across a dark night sky.'
+  ]
+};
+
+var MOON_DATA = {
+  key:'moon', name:'Moon', colorHex:'#c9c9d1', size:0.28, orbitSpeed:3.4, rotSpeed:0,
+  stats:[
+    {label:'Avg. temperature', value:'-53°C'},
+    {label:'Distance from Earth', value:'≈ 384,400 km'},
+    {label:'Diameter', value:'3,474 km'},
+    {label:'Day length', value:'≈29.5 Earth days'},
+    {label:'Orbital period', value:'27.3 Earth days'},
+    {label:'Surface gravity', value:'≈1/6th of Earth’s'}
+  ],
+  tagline:'Earth’s only natural satellite, and its closest neighbor.',
+  description:'The Moon is a dry, airless, heavily cratered world locked in orbit around Earth. It formed early in the solar system’s history, likely from debris left after a massive collision, and its gravity is the main driver of Earth’s ocean tides.',
+  facts:[
+    'The Moon is tidally locked, so the same side always faces Earth.',
+    'It is slowly drifting away from Earth by about 3.8 cm per year.',
+    'Its gravity is the main cause of Earth’s ocean tides.'
   ]
 };
 
@@ -676,8 +809,8 @@ function makeGlowSprite(hex, size, opacity){
   sprite.scale.set(size,size,1);
   return sprite;
 }
-sunGroup.add(makeGlowSprite(0xffb454, 34, 0.9));
-sunGroup.add(makeGlowSprite(0xffdca0, 16, 1));
+sunGroup.add(makeGlowSprite(0xffb454, 19, 0.42));
+sunGroup.add(makeGlowSprite(0xffdca0, 9, 0.55));
 
 /* ============================================================
    PLANETS
@@ -688,6 +821,7 @@ registry['sun'] = { mesh: sunMesh, data: SUN_DATA };
 PLANETS.forEach(function(data){
   var pivot = new THREE.Object3D();
   pivot.rotation.y = Math.random()*Math.PI*2;
+  if(data.inclination){ pivot.rotation.x = THREE.MathUtils.degToRad(data.inclination); }
   scene.add(pivot);
 
   // orbit path
@@ -698,7 +832,7 @@ PLANETS.forEach(function(data){
     orbitPts.push(new THREE.Vector3(Math.cos(a)*data.orbitRadius, 0, Math.sin(a)*data.orbitRadius));
   }
   var orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPts);
-  var orbitMat = new THREE.LineBasicMaterial({ color:0x8892b0, transparent:true, opacity:0.18 });
+  var orbitMat = new THREE.LineBasicMaterial({ color: data.dwarf ? 0x6d7396 : 0x8892b0, transparent:true, opacity: data.dwarf ? 0.12 : 0.18 });
   scene.add(new THREE.LineLoop(orbitGeo, orbitMat));
 
   // tilt group (handles axial tilt + carries planet & ring together)
@@ -728,6 +862,34 @@ PLANETS.forEach(function(data){
 
   registry[data.key] = { pivot:pivot, tiltGroup:tiltGroup, mesh:mesh, ring:ring, data:data };
 });
+
+/* ---------- Moon (orbits Earth) ---------- */
+(function buildMoon(){
+  var earthEntry = registry['earth'];
+  var moonPivot = new THREE.Object3D();
+  moonPivot.rotation.y = Math.random()*Math.PI*2;
+  moonPivot.rotation.x = THREE.MathUtils.degToRad(5.1);
+  earthEntry.tiltGroup.add(moonPivot);
+
+  var moonTex = makeTexture(0xbfbfc7, 'rocky');
+  var moonMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(MOON_DATA.size, 24, 24),
+    new THREE.MeshStandardMaterial({ map:moonTex, roughness:0.9, metalness:0.02 })
+  );
+  moonMesh.position.set(2.7, 0, 0);
+  moonPivot.add(moonMesh);
+
+  var moonOrbitPts = [];
+  for(var i=0;i<=64;i++){
+    var a = (i/64)*Math.PI*2;
+    moonOrbitPts.push(new THREE.Vector3(Math.cos(a)*2.7, 0, Math.sin(a)*2.7));
+  }
+  var moonOrbitGeo = new THREE.BufferGeometry().setFromPoints(moonOrbitPts);
+  var moonOrbitMat = new THREE.LineBasicMaterial({ color:0xaab0c8, transparent:true, opacity:0.15 });
+  moonPivot.add(new THREE.LineLoop(moonOrbitGeo, moonOrbitMat));
+
+  registry['moon'] = { pivot: moonPivot, mesh: moonMesh, data: MOON_DATA };
+})();
 
 /* ---------- Asteroid belt (Mars <-> Jupiter) ---------- */
 (function buildBelt(){
@@ -933,14 +1095,16 @@ function showInfo(d){
   document.getElementById('infoEyebrow').textContent = isGalaxy ? 'Galaxy' : (d.key === 'sun') ? 'Star' : 'Planet';
   document.getElementById('infoName').textContent = d.name;
   document.getElementById('infoTagline').textContent = d.tagline;
-  document.getElementById('labelTemp').textContent = isGalaxy ? 'Estimated stars' : 'Avg. temperature';
-  document.getElementById('labelDistance').textContent = isGalaxy ? 'Sun’s distance from core' : 'Distance from Earth';
-  document.getElementById('labelDiameter').textContent = 'Diameter';
-  document.getElementById('labelDay').textContent = isGalaxy ? 'Orbit around core' : 'Day length';
-  document.getElementById('statTemp').textContent = d.temperature;
-  document.getElementById('statDistance').textContent = d.distance;
-  document.getElementById('statDiameter').textContent = d.diameter;
-  document.getElementById('statDay').textContent = d.day;
+
+  var statGrid = document.getElementById('statGrid');
+  statGrid.innerHTML = '';
+  d.stats.forEach(function(s){
+    var el = document.createElement('div');
+    el.className = 'stat';
+    el.innerHTML = '<p class="label">'+s.label+'</p><p class="value">'+s.value+'</p>';
+    statGrid.appendChild(el);
+  });
+
   document.getElementById('infoDescription').textContent = d.description;
 
   var factsWrap = document.getElementById('infoFacts');
@@ -979,25 +1143,251 @@ function addPlanetButton(d){
   buttonMap[d.key] = btn;
 }
 addPlanetButton(SUN_DATA);
-PLANETS.forEach(addPlanetButton);
+PLANETS.slice(0,3).forEach(addPlanetButton); // mercury, venus, earth
+addPlanetButton(MOON_DATA);
+PLANETS.slice(3).forEach(addPlanetButton); // mars .. pluto
 function setActiveButton(key){
   Object.keys(buttonMap).forEach(function(k){
     buttonMap[k].classList.toggle('active', k===key);
   });
 }
 
-/* ---------- Pause / resume ---------- */
-var running = true;
+/* ---------- Speed control (cycles 1x / 2x / 4x / paused) ---------- */
+var SPEEDS = [1, 2, 4, 0];
+var speedIdx = 0;
 var timeToggle = document.getElementById('timeToggle');
 var timeLabel = document.getElementById('timeLabel');
 var timeIcon = document.getElementById('timeIcon');
 var PLAY_ICON = '<polygon points="6 3 20 12 6 21 6 3"></polygon>';
 var PAUSE_ICON = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
 timeToggle.addEventListener('click', function(){
-  running = !running;
-  timeLabel.textContent = running ? 'Pause motion' : 'Resume motion';
-  timeIcon.innerHTML = running ? PAUSE_ICON : PLAY_ICON;
+  speedIdx = (speedIdx + 1) % SPEEDS.length;
+  var s = SPEEDS[speedIdx];
+  timeLabel.textContent = s === 0 ? 'Paused' : (s + '× speed');
+  timeIcon.innerHTML = s === 0 ? PLAY_ICON : PAUSE_ICON;
 });
+
+/* ---------- Click / tap a planet directly in the scene to focus it ---------- */
+(function wireSceneClicks(){
+  var raycaster = new THREE.Raycaster();
+  var downPos = null;
+  renderer.domElement.addEventListener('pointerdown', function(e){
+    downPos = { x:e.clientX, y:e.clientY };
+  });
+  renderer.domElement.addEventListener('pointerup', function(e){
+    if(!downPos) return;
+    var dx = e.clientX - downPos.x, dy = e.clientY - downPos.y;
+    downPos = null;
+    if(Math.sqrt(dx*dx + dy*dy) > 6) return; // was a drag, not a click
+
+    var rect = renderer.domElement.getBoundingClientRect();
+    var mouse = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    raycaster.setFromCamera(mouse, camera);
+
+    var keys = Object.keys(registry);
+    var meshes = keys.map(function(k){ return registry[k].mesh; });
+    var hits = raycaster.intersectObjects(meshes, false);
+    if(hits.length){
+      var idx = meshes.indexOf(hits[0].object);
+      var key = keys[idx];
+      if(key && key !== focusedKey){ focusPlanet(key); }
+    }
+  });
+})();
+
+/* ---------- Keyboard shortcuts ---------- */
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){ zoomOut(); return; }
+  if(e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  var order = ['mercury','venus','earth','mars','jupiter','saturn','uranus','neptune','pluto'];
+  var idx = order.indexOf(focusedKey);
+  var dir = (e.key === 'ArrowRight') ? 1 : -1;
+  var next = (idx === -1) ? (dir === 1 ? 0 : order.length-1) : (idx + dir + order.length) % order.length;
+  focusPlanet(order[next]);
+});
+
+/* ---------- Fullscreen toggle ---------- */
+var fullscreenBtn = document.getElementById('fullscreenBtn');
+var fsIcon = document.getElementById('fsIcon');
+var FS_ENTER_ICON = '<path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>';
+var FS_EXIT_ICON = '<path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path>';
+fullscreenBtn.addEventListener('click', function(){
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(function(){});
+  } else {
+    document.exitFullscreen();
+  }
+});
+document.addEventListener('fullscreenchange', function(){
+  fsIcon.innerHTML = document.fullscreenElement ? FS_EXIT_ICON : FS_ENTER_ICON;
+});
+
+/* ---------- Shooting stars ---------- */
+var meteors = [];
+var nextMeteorAt = performance.now() + 2500;
+function spawnMeteor(){
+  var dir = new THREE.Vector3((Math.random()-0.5), -(0.35 + Math.random()*0.4), (Math.random()-0.5)).normalize();
+  var length = 34 + Math.random()*26;
+  var startDist = 480 + Math.random()*420;
+  var theta = Math.random()*Math.PI*2;
+  var phi = Math.PI*0.18 + Math.random()*Math.PI*0.5;
+  var origin = new THREE.Vector3(
+    startDist * Math.sin(phi) * Math.cos(theta),
+    startDist * Math.cos(phi),
+    startDist * Math.sin(phi) * Math.sin(theta)
+  );
+  var tail = origin.clone().sub(dir.clone().multiplyScalar(length));
+  var geo = new THREE.BufferGeometry().setFromPoints([tail, origin]);
+  var mat = new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:0.95 });
+  var line = new THREE.Line(geo, mat);
+  scene.add(line);
+  meteors.push({ line:line, dir:dir, speed: 200 + Math.random()*150, life:0, maxLife: 0.8 + Math.random()*0.5 });
+}
+function updateMeteors(delta){
+  var now = performance.now();
+  if(now > nextMeteorAt){
+    spawnMeteor();
+    nextMeteorAt = now + 3200 + Math.random()*5200;
+  }
+  for(var i=meteors.length-1; i>=0; i--){
+    var m = meteors[i];
+    m.life += delta;
+    m.line.position.addScaledVector(m.dir, m.speed*delta);
+    var t = m.life / m.maxLife;
+    m.line.material.opacity = Math.max(0, 0.95*(1-t));
+    if(t >= 1){
+      scene.remove(m.line);
+      m.line.geometry.dispose();
+      m.line.material.dispose();
+      meteors.splice(i,1);
+    }
+  }
+}
+
+/* ---------- Occasional comet with a solar-wind tail ---------- */
+var comet = null;
+var nextCometAt = performance.now() + 9000;
+function spawnComet(){
+  var group = new THREE.Group();
+  var nucleus = new THREE.Mesh(
+    new THREE.SphereGeometry(0.3, 16, 16),
+    new THREE.MeshBasicMaterial({ color:0xeaf6ff })
+  );
+  group.add(nucleus);
+  group.add(makeGlowSprite(0xbfe8ff, 4.4, 0.85));
+
+  var tailH = 7.5;
+  var tailGeo = new THREE.ConeGeometry(1.05, tailH, 14, 1, true);
+  tailGeo.translate(0, -tailH/2, 0);
+  var tailMat = new THREE.MeshBasicMaterial({
+    color:0xbfe8ff, transparent:true, opacity:0.3,
+    side:THREE.DoubleSide, blending:THREE.AdditiveBlending, depthWrite:false
+  });
+  var tail = new THREE.Mesh(tailGeo, tailMat);
+  group.add(tail);
+  scene.add(group);
+
+  var angleA = Math.random()*Math.PI*2;
+  var angleB = angleA + Math.PI + (Math.random()-0.5)*0.8;
+  var heightA = (Math.random()-0.5)*40;
+  var heightB = -heightA*0.6 + (Math.random()-0.5)*10;
+  var rOuter = 92 + Math.random()*20;
+  var start = new THREE.Vector3(Math.cos(angleA)*rOuter, heightA, Math.sin(angleA)*rOuter);
+  var end = new THREE.Vector3(Math.cos(angleB)*rOuter, heightB, Math.sin(angleB)*rOuter);
+  var periAngle = (angleA+angleB)/2 + Math.PI;
+  var peri = new THREE.Vector3(Math.cos(periAngle)*9, (heightA+heightB)*0.05, Math.sin(periAngle)*9);
+  var curve = new THREE.CatmullRomCurve3([start, peri, end]);
+
+  comet = { group:group, tail:tail, tailMat:tailMat, curve:curve, t:0, duration: 15 + Math.random()*4 };
+}
+function updateComet(d2){
+  var now = performance.now();
+  if(!comet && now > nextCometAt && d2 > 0){ spawnComet(); }
+  if(!comet) return;
+  comet.t += d2 / comet.duration;
+  if(comet.t >= 1){
+    scene.remove(comet.group);
+    comet.group.traverse(function(o){
+      if(o.geometry) o.geometry.dispose();
+      if(o.material) o.material.dispose();
+    });
+    comet = null;
+    nextCometAt = now + 42000 + Math.random()*35000;
+    return;
+  }
+  var pos = comet.curve.getPoint(Math.min(comet.t, 1));
+  comet.group.position.copy(pos);
+  var awayDir = pos.clone().normalize();
+  if(awayDir.lengthSq() < 0.0001) awayDir.set(0,1,0);
+  comet.tail.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0), awayDir);
+  var edgeFade = Math.min(1, comet.t*6, (1-comet.t)*6);
+  comet.tailMat.opacity = 0.3 * edgeFade;
+}
+
+/* ---------- Floating planet name labels ---------- */
+var labelSprites = [];
+var labelsVisible = true;
+function makeLabelSprite(text){
+  var c = document.createElement('canvas'); c.width = 320; c.height = 80;
+  var ctx = c.getContext('2d');
+  ctx.font = '600 42px system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 10;
+  ctx.fillStyle = 'rgba(255,255,255,0.94)';
+  ctx.fillText(text, 160, 40);
+  var tex = new THREE.CanvasTexture(c);
+  var mat = new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false, depthTest:false });
+  var sprite = new THREE.Sprite(mat);
+  sprite.scale.set(6.4, 1.6, 1);
+  return sprite;
+}
+(function buildLabels(){
+  Object.keys(registry).forEach(function(k){
+    var entry = registry[k];
+    var label = makeLabelSprite(entry.data.name);
+    var parent, localPos;
+    if(k === 'sun'){ parent = sunGroup; localPos = new THREE.Vector3(0, entry.data.size + 2.6, 0); }
+    else if(k === 'moon'){ parent = entry.pivot; localPos = new THREE.Vector3(2.7, entry.data.size + 0.7, 0); }
+    else { parent = entry.tiltGroup; localPos = new THREE.Vector3(0, entry.data.size + 1.0, 0); }
+    label.position.copy(localPos);
+    label.visible = labelsVisible;
+    parent.add(label);
+    labelSprites.push({ sprite: label, baseSize: Math.max(entry.data.size*1.1, 0.55) });
+  });
+})();
+function updateLabels(){
+  for(var i=0;i<labelSprites.length;i++){
+    var item = labelSprites[i];
+    var wp = new THREE.Vector3();
+    item.sprite.getWorldPosition(wp);
+    var dist = camera.position.distanceTo(wp);
+    var h = THREE.MathUtils.clamp(dist*0.052, item.baseSize*1.3, item.baseSize*16);
+    item.sprite.scale.set(h*4, h, 1);
+  }
+}
+var labelsBtn = document.getElementById('labelsBtn');
+if(labelsBtn){
+  labelsBtn.addEventListener('click', function(){
+    labelsVisible = !labelsVisible;
+    labelSprites.forEach(function(item){ item.sprite.visible = labelsVisible; });
+    labelsBtn.classList.toggle('active', labelsVisible);
+  });
+}
+
+/* ---------- Save current view as an image ---------- */
+var snapshotBtn = document.getElementById('snapshotBtn');
+if(snapshotBtn){
+  snapshotBtn.addEventListener('click', function(){
+    renderer.render(scene, camera);
+    var link = document.createElement('a');
+    link.download = 'solaris-view.png';
+    link.href = renderer.domElement.toDataURL('image/png');
+    link.click();
+  });
+}
 
 /* ============================================================
    ANIMATION LOOP
@@ -1007,13 +1397,15 @@ var clock = new THREE.Clock();
 function animate(){
   requestAnimationFrame(animate);
   var delta = Math.min(clock.getDelta(), 0.05);
+  var speedMult = SPEEDS[speedIdx];
+  var d2 = delta * speedMult;
 
-  if(running){
+  if(speedMult > 0){
     Object.keys(registry).forEach(function(k){
       var e = registry[k];
-      if(e.pivot){ e.pivot.rotation.y += delta * e.data.orbitSpeed * 0.12; }
-      if(e.data.rotSpeed){ e.mesh.rotation.y += delta * e.data.rotSpeed * 0.4; }
-      if(e.ring){ e.ring.rotation.z += delta * 0.06; }
+      if(e.pivot){ e.pivot.rotation.y += d2 * e.data.orbitSpeed * 0.12; }
+      if(e.data.rotSpeed){ e.mesh.rotation.y += d2 * e.data.rotSpeed * 0.4; }
+      if(e.ring){ e.ring.rotation.z += d2 * 0.06; }
     });
   }
 
@@ -1041,6 +1433,9 @@ function animate(){
   }
 
   controls.update();
+  updateMeteors(delta);
+  updateComet(d2);
+  updateLabels();
   renderer.render(scene, camera);
 }
 
