@@ -329,7 +329,7 @@
 <script>
   const SUPABASE_URL = 'https://cgugqgcfnzbdiochycru.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_sBTwiXIafY_BDE2f1BA2oQ_-X2l5Lf-';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log("Supabase Connected Successfully!", supabase);
 
 (function(){
